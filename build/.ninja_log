@@ -1,0 +1,8 @@
+# ninja log v7
+1	23	1794664866318155059	deezer-desktop_autogen/timestamp	9b0e4929d66710ef
+1	23	1794664866318155059	deezer-desktop_autogen/mocs_compilation.cpp	9b0e4929d66710ef
+1	23	1794664866318155059	/home/egehan/Projects/deezer-desktop/build/deezer-desktop_autogen/timestamp	9b0e4929d66710ef
+1	23	1794664866318155059	/home/egehan/Projects/deezer-desktop/build/deezer-desktop_autogen/mocs_compilation.cpp	9b0e4929d66710ef
+24	31	1794664866324696254	CMakeFiles/deezer-desktop.dir/deezer-desktop_autogen/mocs_compilation.cpp.o	7642d6180d6d39d0
+24	1043	1794664866324814949	CMakeFiles/deezer-desktop.dir/src/main.cpp.o	25a485ddb215df07
+1044	1223	1794664867344880128	deezer-desktop	f53a695c64857c9e
