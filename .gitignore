@@ -1,5 +1,18 @@
-
+cat > .gitignore <<'EOF'
+# Build files
 build/
 cmake-build-*/
+
+# IDE files
 *.user
 .cache/
+.vscode/
+.idea/
+
+# Temporary and backup files
+*.broken-backup
+*~
+
+# Local configuration
+.env
+EOF
