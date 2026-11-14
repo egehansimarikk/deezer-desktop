@@ -4,10 +4,35 @@
 
 Deezer Desktop brings the Deezer web player into a standalone Linux application, with desktop integration and configurable performance settings.
 
-> **Status:** Early development (v0.1.0)
-> **Tested on:** CachyOS Linux
-> **CEF:** 144.0.6
+> **Version:** v0.1.0  
+> **Status:** Early development  
+> **Tested on:** CachyOS Linux / Hyprland (XWayland)  
+> **Architecture:** Linux x86_64  
+> **CEF:** 144.0.6  
 > **Chromium:** 144.0.7559.59
+
+## Download
+
+**Latest release: [Deezer Desktop v0.1.0](https://github.com/egehansimarikk/deezer-desktop/releases/tag/v0.1.0)**
+
+Download the Linux x86_64 archive:
+
+`deezer-desktop-v0.1.0-linux-x86_64.tar.gz`
+
+### Installation
+
+1. Download the `.tar.gz` archive from the [Releases page](https://github.com/egehansimarikk/deezer-desktop/releases).
+2. Extract the archive.
+3. Open the extracted directory.
+4. Run the application:
+
+```bash
+./deezer-desktop --ozone-platform=x11
+```
+
+The release package includes the required CEF and Chromium runtime files. You do not need to download the CEF SDK separately.
+
+**Note:** The application currently uses X11 window integration. On Wayland compositors such as Hyprland, it runs through XWayland. Additional system dependencies may be required on distributions other than CachyOS.
 
 ## Features
 
@@ -25,6 +50,15 @@ Deezer Desktop brings the Deezer web player into a standalone Linux application,
 *Screenshots will be added soon.*
 
 ## Requirements
+
+### Running the prebuilt release
+
+- Linux x86_64
+- X11 or XWayland support
+- Required system runtime libraries
+- Internet connection
+
+### Building from source
 
 - Linux
 - C++17 compatible compiler
@@ -79,7 +113,9 @@ cmake --build build -j2
 
 ## Project status
 
-This project is currently in early development. It is primarily developed and tested on CachyOS. Compatibility with other Linux distributions has not yet been fully tested.
+Deezer Desktop is currently in early development. It is primarily developed and tested on CachyOS Linux with Hyprland using XWayland.
+
+Compatibility with other Linux distributions and desktop environments has not yet been fully tested.
 
 ## Disclaimer
 
@@ -95,10 +131,35 @@ Deezer is a trademark of its respective owner.
 
 Deezer Desktop, Deezer web oynatıcısını masaüstü ortamına taşıyarak bağımsız bir Linux uygulaması olarak kullanılmasını sağlar.
 
-> **Durum:** Erken geliştirme aşaması (v0.1.0)
-> **Test edilen sistem:** CachyOS Linux
-> **CEF:** 144.0.6
+> **Sürüm:** v0.1.0  
+> **Durum:** Erken geliştirme aşaması  
+> **Test edilen sistem:** CachyOS Linux / Hyprland (XWayland)  
+> **Mimari:** Linux x86_64  
+> **CEF:** 144.0.6  
 > **Chromium:** 144.0.7559.59
+
+## İndir
+
+**Son sürüm: [Deezer Desktop v0.1.0](https://github.com/egehansimarikk/deezer-desktop/releases/tag/v0.1.0)**
+
+Linux x86_64 arşivi:
+
+`deezer-desktop-v0.1.0-linux-x86_64.tar.gz`
+
+### Kurulum
+
+1. `.tar.gz` arşivini [Releases sayfasından](https://github.com/egehansimarikk/deezer-desktop/releases) indirin.
+2. Arşivi çıkarın.
+3. Çıkarılan klasörü açın.
+4. Uygulamayı çalıştırın:
+
+```bash
+./deezer-desktop --ozone-platform=x11
+```
+
+Release paketi gerekli CEF ve Chromium çalışma zamanı dosyalarını içerir. CEF SDK'yı ayrıca indirmeniz gerekmez.
+
+**Not:** Uygulama şu anda X11 pencere entegrasyonunu kullanmaktadır. Hyprland gibi Wayland tabanlı masaüstlerinde XWayland üzerinden çalışır. CachyOS dışındaki dağıtımlarda ek sistem bağımlılıkları gerekebilir.
 
 ## Özellikler
 
@@ -116,6 +177,15 @@ Deezer Desktop, Deezer web oynatıcısını masaüstü ortamına taşıyarak ba�
 *Ekran görüntüleri yakında eklenecek.*
 
 ## Gereksinimler
+
+### Hazır sürümü çalıştırmak için
+
+- Linux x86_64
+- X11 veya XWayland desteği
+- Gerekli sistem çalışma zamanı kütüphaneleri
+- İnternet bağlantısı
+
+### Kaynak koddan derlemek için
 
 - Linux
 - C++17 destekleyen derleyici
@@ -170,7 +240,9 @@ cmake --build build -j2
 
 ## Proje durumu
 
-Proje şu anda erken geliştirme aşamasındadır. Öncelikli olarak CachyOS üzerinde geliştirilmekte ve test edilmektedir. Diğer Linux dağıtımlarıyla uyumluluğu henüz tamamen test edilmemiştir.
+Deezer Desktop şu anda erken geliştirme aşamasındadır. Öncelikli olarak Hyprland masaüstü ortamıyla birlikte CachyOS üzerinde geliştirilmekte ve XWayland üzerinden test edilmektedir.
+
+Diğer Linux dağıtımları ve masaüstü ortamlarıyla uyumluluğu henüz tamamen test edilmemiştir.
 
 ## Sorumluluk reddi
 
