@@ -16,3 +16,6 @@ cmake-build-*/
 # Local configuration
 .env
 EOF
+# Distribution files
+dist-test/
+*.tar.gz
