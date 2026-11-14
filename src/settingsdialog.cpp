@@ -13,7 +13,7 @@
 
 #define CEF_VERSION "144.0.6"
 #define CHROMIUM_VERSION "144.0.7559.59"
-#define APP_VERSION "0.1.0"
+#define APP_VERSION "0.1.1"
 
 SettingsDialog::SettingsDialog(QWidget *parent)
     : QDialog(parent)

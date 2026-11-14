@@ -290,13 +290,83 @@ class DeezerClient :
     public CefMessageRouterBrowserSide::Handler
 {
 public:
-    explicit DeezerClient(
-        MainWindow *window,
-        MprisController *mpris)
-        : mainWindow(window),
-          mprisController(mpris)
-    {
+   explicit DeezerClient(
+    MainWindow *window,
+    MprisController *mpris)
+    : mainWindow(window),
+      mprisController(mpris)
+{
+}
+
+    void executeMediaCommand(const QString &command)
+{
+    if (!mediaFrame || !mediaFrame->IsValid()) {
+        qWarning() << "MPRIS: No valid media frame for command:"
+                   << command;
+        return;
     }
+
+    QString action;
+
+    if (command == "play") {
+        action = R"JS(
+            if (media.paused) {
+                media.play().catch(function(error) {
+                    console.error("MPRIS PLAY ERROR:", error);
+                });
+            }
+        )JS";
+    }
+    else if (command == "pause") {
+        action = "media.pause();";
+    }
+    else if (command == "playpause") {
+        action = R"JS(
+            if (media.paused) {
+                media.play().catch(function(error) {
+                    console.error("MPRIS PLAY ERROR:", error);
+                });
+            } else {
+                media.pause();
+            }
+        )JS";
+    }
+    else if (command == "stop") {
+        action = R"JS(
+            media.pause();
+            try {
+                media.currentTime = 0;
+            } catch (error) {
+                console.error("MPRIS STOP ERROR:", error);
+            }
+        )JS";
+    }
+    else {
+        qWarning() << "MPRIS: Unknown media command:" << command;
+        return;
+    }
+
+    QString script =
+        QStringLiteral(
+            "(function(){"
+            "const media = document.querySelector('audio, video');"
+            "if (!media) {"
+            "console.warn('MPRIS: Media element not found');"
+            "return;"
+            "}"
+            "%1"
+            "})();"
+        ).arg(action);
+
+    mediaFrame->ExecuteJavaScript(
+        script.toStdString(),
+        mediaFrame->GetURL(),
+        0
+    );
+
+    qDebug() << "MPRIS COMMAND SENT:" << command;
+}
+
 
     CefRefPtr<CefLifeSpanHandler>
     GetLifeSpanHandler() override
@@ -406,7 +476,9 @@ public:
     CefRefPtr<Callback> callback) override
 {
     Q_UNUSED(browser);
-    Q_UNUSED(frame);
+    qDebug() << "MPRIS FRAME:"
+         << frame->GetIdentifier().ToString()
+         << QString::fromStdString(frame->GetURL().ToString());
     Q_UNUSED(queryId);
     Q_UNUSED(persistent);
 
@@ -441,6 +513,8 @@ public:
     }
 
     QJsonObject data = document.object();
+
+    mediaFrame = frame;
 
     QString title = data.value("title").toString();
     QString artist = data.value("artist").toString();
@@ -706,6 +780,8 @@ void OnLoadEnd(
 private:
     QPointer<MainWindow> mainWindow;
     MprisController *mprisController = nullptr;
+
+    CefRefPtr<CefFrame> mediaFrame;
 
     CefRefPtr<CefMessageRouterBrowserSide>
         messageRouter;
@@ -1175,10 +1251,43 @@ int main(int argc, char *argv[])
 
     MainWindow window;
 
-    CefRefPtr<DeezerClient> client =
-        new DeezerClient(&window, &mprisController);
+CefRefPtr<DeezerClient> client =
+    new DeezerClient(&window, &mprisController);
 
-    window.show();
+// MPRIS media commands
+QObject::connect(
+    &mprisController,
+    &MprisController::playRequested,
+    [&client]() {
+        client->executeMediaCommand("play");
+    }
+);
+
+QObject::connect(
+    &mprisController,
+    &MprisController::pauseRequested,
+    [&client]() {
+        client->executeMediaCommand("pause");
+    }
+);
+
+QObject::connect(
+    &mprisController,
+    &MprisController::playPauseRequested,
+    [&client]() {
+        client->executeMediaCommand("playpause");
+    }
+);
+
+QObject::connect(
+    &mprisController,
+    &MprisController::stopRequested,
+    [&client]() {
+        client->executeMediaCommand("stop");
+    }
+);
+
+window.show();
 
     QTimer::singleShot(
         0,

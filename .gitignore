@@ -1,7 +1,10 @@
-cat > .gitignore <<'EOF'
 # Build files
 build/
 cmake-build-*/
+dist-test/
+
+# Distribution archives
+*.tar.gz
 
 # IDE files
 *.user
@@ -11,11 +14,8 @@ cmake-build-*/
 
 # Temporary and backup files
 *.broken-backup
+*.backup
 *~
 
 # Local configuration
 .env
-EOF
-# Distribution files
-dist-test/
-*.tar.gz
