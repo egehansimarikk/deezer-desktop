@@ -2,9 +2,9 @@
 
 **An unofficial Deezer desktop client for Linux, built with C++, Qt6 and Chromium Embedded Framework (CEF).**
 
-Deezer Desktop brings the Deezer web player into a standalone Linux application, with desktop integration and configurable performance settings.
+Deezer Desktop brings the Deezer web player into a standalone Linux application, featuring desktop media integration, MPRIS support, application icons, and configurable performance settings.
 
-> **Version:** v0.1.0  
+> **Version:** v0.1.1  
 > **Status:** Early development  
 > **Tested on:** CachyOS Linux / Hyprland (XWayland)  
 > **Architecture:** Linux x86_64  
@@ -13,37 +13,53 @@ Deezer Desktop brings the Deezer web player into a standalone Linux application,
 
 ## Download
 
-**Latest release: [Deezer Desktop v0.1.0](https://github.com/egehansimarikk/deezer-desktop/releases/tag/v0.1.0)**
+**Latest release: [Deezer Desktop v0.1.1](https://github.com/egehansimarikk/deezer-desktop/releases/tag/v0.1.1)**
 
-Download the Linux x86_64 archive:
+Download the prebuilt Linux x86_64 package:
 
-`deezer-desktop-v0.1.0-linux-x86_64.tar.gz`
+`deezer-desktop-v0.1.1-linux-x86_64.tar.gz`
 
-### Installation
+## Installation
 
 1. Download the `.tar.gz` archive from the [Releases page](https://github.com/egehansimarikk/deezer-desktop/releases).
 2. Extract the archive.
-3. Open the extracted directory.
-4. Run the application:
+3. Open a terminal in the extracted directory.
+4. Run the installation script:
 
 ```bash
-./deezer-desktop --ozone-platform=x11
+./install.sh
 ```
 
-The release package includes the required CEF and Chromium runtime files. You do not need to download the CEF SDK separately.
+The installer automatically installs the application, runtime files, application icons, and desktop launcher.
 
-**Note:** The application currently uses X11 window integration. On Wayland compositors such as Hyprland, it runs through XWayland. Additional system dependencies may be required on distributions other than CachyOS.
+After installation, Deezer Desktop can be launched from your application menu.
+
+### Uninstallation
+
+Open the extracted package directory and run:
+
+```bash
+./uninstall.sh
+```
+
+Application settings are preserved after uninstallation.
+
+**Note:** Deezer Desktop currently uses X11 window integration. On Wayland compositors such as Hyprland, it runs through XWayland. Additional system dependencies may be required on distributions other than CachyOS.
 
 ## Features
 
 - Standalone Deezer desktop window
 - Embedded Deezer web player powered by CEF
-- Desktop media controls through MPRIS
-- Media metadata integration
-- Light, dark and system theme options
+- MPRIS desktop media integration
+- System media key support
+- Media metadata and playback status integration
+- Play, pause, resume, stop, next, and previous controls
+- Light, dark, and system theme options
 - Optional window size persistence
-- Hardware acceleration toggle
-- Configurable Chromium GPU acceleration
+- Configurable hardware acceleration
+- Chromium GPU acceleration settings
+- Custom application logo and Linux application icons
+- Installation and uninstallation scripts
 
 ## Screenshots
 
@@ -57,6 +73,8 @@ The release package includes the required CEF and Chromium runtime files. You do
 - X11 or XWayland support
 - Required system runtime libraries
 - Internet connection
+
+The release package includes the required CEF and Chromium runtime files. You do not need to download the CEF SDK separately.
 
 ### Building from source
 
@@ -72,11 +90,11 @@ The release package includes the required CEF and Chromium runtime files. You do
 
 ### 1. Install dependencies
 
-On Arch Linux-based distributions, install the required build tools and Qt/X11 development packages.
+On Arch Linux-based distributions, install the required build tools, Qt6 packages, and X11 development libraries.
 
 ### 2. Download CEF
 
-Download the CEF Linux 64-bit binary distribution matching this version:
+Download the Linux 64-bit CEF binary distribution matching the following versions:
 
 `CEF 144.0.6 + Chromium 144.0.7559.59`
 
@@ -91,7 +109,7 @@ cd deezer-desktop
 
 ### 4. Configure the project
 
-Replace the path below with your extracted CEF directory:
+Replace `/path/to/cef` with the path to your extracted CEF directory.
 
 ```bash
 cmake -S . -B build -G Ninja \
@@ -117,6 +135,8 @@ Deezer Desktop is currently in early development. It is primarily developed and 
 
 Compatibility with other Linux distributions and desktop environments has not yet been fully tested.
 
+Features and behavior may change in future releases.
+
 ## Disclaimer
 
 Deezer Desktop is an unofficial, community-developed project. It is not affiliated with, endorsed by, or officially connected to Deezer.
@@ -129,9 +149,9 @@ Deezer is a trademark of its respective owner.
 
 **C++, Qt6 ve Chromium Embedded Framework (CEF) kullanılarak geliştirilmiş, Linux için resmi olmayan bir Deezer masaüstü istemcisi.**
 
-Deezer Desktop, Deezer web oynatıcısını masaüstü ortamına taşıyarak bağımsız bir Linux uygulaması olarak kullanılmasını sağlar.
+Deezer Desktop, Deezer web oynatıcısını bağımsız bir Linux uygulamasına dönüştürür. Masaüstü medya entegrasyonu, MPRIS desteği, uygulama ikonları ve yapılandırılabilir performans ayarları sunar.
 
-> **Sürüm:** v0.1.0  
+> **Sürüm:** v0.1.1  
 > **Durum:** Erken geliştirme aşaması  
 > **Test edilen sistem:** CachyOS Linux / Hyprland (XWayland)  
 > **Mimari:** Linux x86_64  
@@ -140,37 +160,53 @@ Deezer Desktop, Deezer web oynatıcısını masaüstü ortamına taşıyarak ba�
 
 ## İndir
 
-**Son sürüm: [Deezer Desktop v0.1.0](https://github.com/egehansimarikk/deezer-desktop/releases/tag/v0.1.0)**
+**Son sürüm: [Deezer Desktop v0.1.1](https://github.com/egehansimarikk/deezer-desktop/releases/tag/v0.1.1)**
 
-Linux x86_64 arşivi:
+Linux x86_64 için hazır paketi indirin:
 
-`deezer-desktop-v0.1.0-linux-x86_64.tar.gz`
+`deezer-desktop-v0.1.1-linux-x86_64.tar.gz`
 
-### Kurulum
+## Kurulum
 
 1. `.tar.gz` arşivini [Releases sayfasından](https://github.com/egehansimarikk/deezer-desktop/releases) indirin.
 2. Arşivi çıkarın.
-3. Çıkarılan klasörü açın.
-4. Uygulamayı çalıştırın:
+3. Çıkarılan klasörü terminalde açın.
+4. Kurulum betiğini çalıştırın:
 
 ```bash
-./deezer-desktop --ozone-platform=x11
+./install.sh
 ```
 
-Release paketi gerekli CEF ve Chromium çalışma zamanı dosyalarını içerir. CEF SDK'yı ayrıca indirmeniz gerekmez.
+Kurulum betiği uygulamayı, gerekli çalışma zamanı dosyalarını, uygulama ikonlarını ve masaüstü başlatıcısını otomatik olarak yükler.
 
-**Not:** Uygulama şu anda X11 pencere entegrasyonunu kullanmaktadır. Hyprland gibi Wayland tabanlı masaüstlerinde XWayland üzerinden çalışır. CachyOS dışındaki dağıtımlarda ek sistem bağımlılıkları gerekebilir.
+Kurulumdan sonra Deezer Desktop uygulama menüsünden başlatılabilir.
+
+### Kaldırma
+
+Çıkardığınız paket klasörünü terminalde açıp şu komutu çalıştırın:
+
+```bash
+./uninstall.sh
+```
+
+Uygulama kaldırıldığında ayarlarınız korunur.
+
+**Not:** Deezer Desktop şu anda X11 pencere entegrasyonunu kullanmaktadır. Hyprland gibi Wayland tabanlı masaüstü ortamlarında XWayland üzerinden çalışır. CachyOS dışındaki dağıtımlarda ek sistem bağımlılıkları gerekebilir.
 
 ## Özellikler
 
 - Bağımsız Deezer masaüstü penceresi
 - CEF tabanlı gömülü Deezer web oynatıcısı
-- MPRIS üzerinden masaüstü medya kontrolleri
-- Medya bilgisi entegrasyonu
+- MPRIS üzerinden masaüstü medya entegrasyonu
+- Sistem medya tuşu desteği
+- Medya bilgisi ve oynatma durumu entegrasyonu
+- Oynat, duraklat, devam ettir, durdur, sonraki ve önceki parça kontrolleri
 - Açık, koyu ve sistem teması seçenekleri
 - Pencere boyutunu hatırlama seçeneği
-- Donanım hızlandırması ayarı
-- Chromium GPU hızlandırmasını açıp kapatma
+- Yapılandırılabilir donanım hızlandırması
+- Chromium GPU hızlandırma ayarları
+- Özel uygulama logosu ve Linux uygulama ikonları
+- Kurulum ve kaldırma betikleri
 
 ## Ekran görüntüleri
 
@@ -184,6 +220,8 @@ Release paketi gerekli CEF ve Chromium çalışma zamanı dosyalarını içerir.
 - X11 veya XWayland desteği
 - Gerekli sistem çalışma zamanı kütüphaneleri
 - İnternet bağlantısı
+
+Release paketi gerekli CEF ve Chromium çalışma zamanı dosyalarını içerir. CEF SDK'yı ayrıca indirmeniz gerekmez.
 
 ### Kaynak koddan derlemek için
 
@@ -199,11 +237,11 @@ Release paketi gerekli CEF ve Chromium çalışma zamanı dosyalarını içerir.
 
 ### 1. Bağımlılıkları yükleyin
 
-Arch Linux tabanlı dağıtımlarda gerekli derleme araçlarını ve Qt/X11 geliştirme paketlerini yükleyin.
+Arch Linux tabanlı dağıtımlarda gerekli derleme araçlarını, Qt6 paketlerini ve X11 geliştirme kütüphanelerini yükleyin.
 
 ### 2. CEF'i indirin
 
-Aşağıdaki sürümle eşleşen Linux 64-bit CEF paketini indirin:
+Aşağıdaki sürümlerle eşleşen Linux 64-bit CEF paketini indirin:
 
 `CEF 144.0.6 + Chromium 144.0.7559.59`
 
@@ -218,7 +256,7 @@ cd deezer-desktop
 
 ### 4. Projeyi yapılandırın
 
-Aşağıdaki CEF yolunu kendi sisteminizdeki çıkarılmış CEF klasörünün yoluyla değiştirin:
+`/cef/klasorunun/yolu` bölümünü kendi sisteminizdeki CEF klasörünün yoluyla değiştirin.
 
 ```bash
 cmake -S . -B build -G Ninja \
@@ -243,6 +281,8 @@ cmake --build build -j2
 Deezer Desktop şu anda erken geliştirme aşamasındadır. Öncelikli olarak Hyprland masaüstü ortamıyla birlikte CachyOS üzerinde geliştirilmekte ve XWayland üzerinden test edilmektedir.
 
 Diğer Linux dağıtımları ve masaüstü ortamlarıyla uyumluluğu henüz tamamen test edilmemiştir.
+
+Gelecek sürümlerde özellikler ve uygulamanın çalışma biçimi değişebilir.
 
 ## Sorumluluk reddi
 
