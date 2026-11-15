@@ -1,10 +1,13 @@
+
 # Build files
 build/
 cmake-build-*/
 dist-test/
+pkg/
 
 # Distribution archives
 *.tar.gz
+*.pkg.tar.zst
 
 # IDE files
 *.user

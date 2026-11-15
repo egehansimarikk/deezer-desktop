@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(DeezerDesktop
-    VERSION 0.1.1
+    VERSION 0.1.2
     LANGUAGES C CXX
 )
 
@@ -14,6 +14,9 @@ set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets DBus)
 find_package(X11 REQUIRED)
+find_package(PkgConfig REQUIRED)
+
+pkg_check_modules(PULSE REQUIRED IMPORTED_TARGET libpulse)
 
 # CEF SDK location
 set(CEF_ROOT "" CACHE PATH "Path to the CEF binary distribution")
@@ -44,6 +47,8 @@ add_executable(deezer-desktop
     src/mpriscontroller.h
     src/settingsdialog.cpp
     src/settingsdialog.h
+    src/audiooutputcontroller.cpp
+    src/audiooutputcontroller.h
 )
 
 target_include_directories(deezer-desktop
@@ -56,6 +61,7 @@ target_link_libraries(deezer-desktop
         Qt6::Widgets
         Qt6::DBus
         X11::X11
+        PkgConfig::PULSE
         "${CEF_ROOT}/Release/libcef.so"
         libcef_dll_wrapper
         ${CEF_STANDARD_LIBS}

@@ -10,6 +10,7 @@
 #include <QMenu>
 #include <QAction>
 #include "mpriscontroller.h"
+#include "audiooutputcontroller.h"
 #include <QApplication>
 #include <QMainWindow>
 #include <QWidget>
@@ -866,8 +867,12 @@ private:
 class MainWindow : public QMainWindow
 {
 public:
-    explicit MainWindow(QWidget *parent = nullptr)
-        : QMainWindow(parent)
+    explicit MainWindow(
+    AudioOutputController *audioController,
+    QWidget *parent = nullptr
+)
+    : QMainWindow(parent),
+      audioOutputController(audioController)
     {
         setWindowTitle("Deezer Desktop");
 
@@ -902,7 +907,7 @@ public:
             &QAction::triggered,
             this,
             [this]() {
-                SettingsDialog dialog(this);
+                SettingsDialog dialog(audioOutputController, this);
 
                 if (dialog.exec() == QDialog::Accepted)
                     applyTheme();
@@ -1004,6 +1009,8 @@ protected:
     }
 
 private:
+    AudioOutputController *audioOutputController = nullptr;
+
     BrowserWidget *browserWidget = nullptr;
     CefRefPtr<CefBrowser> cefBrowser;
 
@@ -1217,7 +1224,50 @@ int main(int argc, char *argv[])
         return exitCode;
 
     QApplication app(argc, argv);
-    MprisController mprisController;
+
+MprisController mprisController;
+AudioOutputController audioOutputController;
+
+// Audio output device discovery
+QObject::connect(
+    &audioOutputController,
+    &AudioOutputController::devicesUpdated,
+    &app,
+    [](const QVariantList &devices, const QString &defaultSink) {
+        qDebug() << "=== AUDIO OUTPUT DEVICES ===";
+        qDebug() << "Default sink:" << defaultSink;
+
+        for (const QVariant &item : devices) {
+            QVariantMap device = item.toMap();
+
+            qDebug() << "Device:"
+                     << device["description"].toString();
+
+            qDebug() << "Sink name:"
+                     << device["name"].toString();
+
+            qDebug() << "Sample rate:"
+                     << device["sampleRate"].toInt();
+
+            qDebug() << "Channels:"
+                     << device["channels"].toInt();
+
+            qDebug() << "Default:"
+                     << device["isDefault"].toBool();
+        }
+
+        qDebug() << "============================";
+    }
+);
+
+QObject::connect(
+    &audioOutputController,
+    &AudioOutputController::errorOccurred,
+    &app,
+    [](const QString &message) {
+        qWarning() << "Audio output error:" << message;
+    }
+);
 
     // Create the Qt timer only after QApplication.
     CefMessagePump messagePump;
@@ -1249,7 +1299,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    MainWindow window;
+    MainWindow window(&audioOutputController);
 
 CefRefPtr<DeezerClient> client =
     new DeezerClient(&window, &mprisController);

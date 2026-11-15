@@ -4,7 +4,7 @@
 
 Deezer Desktop brings the Deezer web player into a standalone Linux application, featuring desktop media integration, MPRIS support, application icons, and configurable performance settings.
 
-> **Version:** v0.1.1  
+> **Version:** v0.1.2  
 > **Status:** Early development  
 > **Tested on:** CachyOS Linux / Hyprland (XWayland)  
 > **Architecture:** Linux x86_64  
@@ -13,11 +13,11 @@ Deezer Desktop brings the Deezer web player into a standalone Linux application,
 
 ## Download
 
-**Latest release: [Deezer Desktop v0.1.1](https://github.com/egehansimarikk/deezer-desktop/releases/tag/v0.1.1)**
+**Latest release: [Deezer Desktop v0.1.2](https://github.com/egehansimarikk/deezer-desktop/releases/tag/v0.1.2)**
 
 Download the prebuilt Linux x86_64 package:
 
-`deezer-desktop-v0.1.1-linux-x86_64.tar.gz`
+`deezer-desktop-v0.1.2-linux-x86_64.tar.gz`
 
 ## Installation
 
@@ -151,7 +151,7 @@ Deezer is a trademark of its respective owner.
 
 Deezer Desktop, Deezer web oynatıcısını bağımsız bir Linux uygulamasına dönüştürür. Masaüstü medya entegrasyonu, MPRIS desteği, uygulama ikonları ve yapılandırılabilir performans ayarları sunar.
 
-> **Sürüm:** v0.1.1  
+> **Sürüm:** v0.1.2  
 > **Durum:** Erken geliştirme aşaması  
 > **Test edilen sistem:** CachyOS Linux / Hyprland (XWayland)  
 > **Mimari:** Linux x86_64  
@@ -160,11 +160,11 @@ Deezer Desktop, Deezer web oynatıcısını bağımsız bir Linux uygulamasına 
 
 ## İndir
 
-**Son sürüm: [Deezer Desktop v0.1.1](https://github.com/egehansimarikk/deezer-desktop/releases/tag/v0.1.1)**
+**Son sürüm: [Deezer Desktop v0.1.2](https://github.com/egehansimarikk/deezer-desktop/releases/tag/v0.1.2)**
 
 Linux x86_64 için hazır paketi indirin:
 
-`deezer-desktop-v0.1.1-linux-x86_64.tar.gz`
+`deezer-desktop-v0.1.2-linux-x86_64.tar.gz`
 
 ## Kurulum
 
