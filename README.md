@@ -15,11 +15,38 @@ Deezer Desktop brings the Deezer web player into a standalone Linux application,
 
 **Latest release: [Deezer Desktop v0.1.2](https://github.com/egehansimarikk/deezer-desktop/releases/tag/v0.1.2)**
 
-Download the prebuilt Linux x86_64 package:
+Two prebuilt Linux x86_64 packages are available:
 
-`deezer-desktop-v0.1.2-linux-x86_64.tar.gz`
+- `deezer-desktop-v0.1.2-linux-x86_64.tar.gz` — portable archive with installation scripts.
+- `deezer-desktop-0.1.2-1-x86_64.pkg.tar.zst` — Arch Linux package.
 
 ## Installation
+
+### Arch Linux / CachyOS package
+
+Download the `.pkg.tar.zst` package from the [Releases page](https://github.com/egehansimarikk/deezer-desktop/releases).
+
+Open a terminal in the directory containing the downloaded package and run:
+
+```bash
+sudo pacman -U ./deezer-desktop-0.1.2-1-x86_64.pkg.tar.zst
+```
+
+Pacman will install the application and handle dependencies available in your configured repositories.
+
+After installation, Deezer Desktop can be launched from your application menu.
+
+**Uninstallation**
+
+To remove the application, run:
+
+```bash
+sudo pacman -Rns deezer-desktop
+```
+
+Your application settings are preserved after uninstallation.
+
+### Manual installation (tar.gz)
 
 1. Download the `.tar.gz` archive from the [Releases page](https://github.com/egehansimarikk/deezer-desktop/releases).
 2. Extract the archive.
@@ -34,7 +61,7 @@ The installer automatically installs the application, runtime files, application
 
 After installation, Deezer Desktop can be launched from your application menu.
 
-### Uninstallation
+**Uninstallation**
 
 Open the extracted package directory and run:
 
@@ -74,7 +101,7 @@ Application settings are preserved after uninstallation.
 - Required system runtime libraries
 - Internet connection
 
-The release package includes the required CEF and Chromium runtime files. You do not need to download the CEF SDK separately.
+The release packages include the required CEF and Chromium runtime files. You do not need to download the CEF SDK separately.
 
 ### Building from source
 
@@ -162,11 +189,38 @@ Deezer Desktop, Deezer web oynatıcısını bağımsız bir Linux uygulamasına 
 
 **Son sürüm: [Deezer Desktop v0.1.2](https://github.com/egehansimarikk/deezer-desktop/releases/tag/v0.1.2)**
 
-Linux x86_64 için hazır paketi indirin:
+Linux x86_64 için iki hazır paket sunulmaktadır:
 
-`deezer-desktop-v0.1.2-linux-x86_64.tar.gz`
+- `deezer-desktop-v0.1.2-linux-x86_64.tar.gz` — kurulum betiklerini içeren arşiv.
+- `deezer-desktop-0.1.2-1-x86_64.pkg.tar.zst` — Arch Linux paketi.
 
 ## Kurulum
+
+### Arch Linux / CachyOS paketi
+
+`.pkg.tar.zst` paketini [Releases sayfasından](https://github.com/egehansimarikk/deezer-desktop/releases) indirin.
+
+İndirdiğiniz paketin bulunduğu klasörde terminal açın ve şu komutu çalıştırın:
+
+```bash
+sudo pacman -U ./deezer-desktop-0.1.2-1-x86_64.pkg.tar.zst
+```
+
+Pacman uygulamayı kurar ve yapılandırılmış depolarınızda bulunan bağımlılıkları yönetir.
+
+Kurulumdan sonra Deezer Desktop uygulama menüsünden başlatılabilir.
+
+**Kaldırma**
+
+Uygulamayı kaldırmak için:
+
+```bash
+sudo pacman -Rns deezer-desktop
+```
+
+Uygulama kaldırıldığında ayarlarınız korunur.
+
+### Manuel kurulum (tar.gz)
 
 1. `.tar.gz` arşivini [Releases sayfasından](https://github.com/egehansimarikk/deezer-desktop/releases) indirin.
 2. Arşivi çıkarın.
@@ -181,7 +235,7 @@ Kurulum betiği uygulamayı, gerekli çalışma zamanı dosyalarını, uygulama 
 
 Kurulumdan sonra Deezer Desktop uygulama menüsünden başlatılabilir.
 
-### Kaldırma
+**Kaldırma**
 
 Çıkardığınız paket klasörünü terminalde açıp şu komutu çalıştırın:
 
@@ -221,7 +275,7 @@ Uygulama kaldırıldığında ayarlarınız korunur.
 - Gerekli sistem çalışma zamanı kütüphaneleri
 - İnternet bağlantısı
 
-Release paketi gerekli CEF ve Chromium çalışma zamanı dosyalarını içerir. CEF SDK'yı ayrıca indirmeniz gerekmez.
+Release paketleri gerekli CEF ve Chromium çalışma zamanı dosyalarını içerir. CEF SDK'yı ayrıca indirmeniz gerekmez.
 
 ### Kaynak koddan derlemek için
 
