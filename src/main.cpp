@@ -1,8 +1,8 @@
+
 #include "settingsdialog.h"
 #include <QSettings>
 #include "include/cef_command_line.h"
 
-#include <QSettings>
 #include <QPalette>
 #include <QColor>
 #include <QStyle>
@@ -21,10 +21,14 @@
 #include <QCloseEvent>
 #include <QDebug>
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QString>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSet>
+#include <QStringList>
 #include <QVariantMap>
+#include <QCryptographicHash>
 
 #include <X11/Xlib.h>
 
@@ -34,6 +38,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <climits>
+#include <vector>
 
 #include "include/cef_app.h"
 #include "include/cef_browser.h"
@@ -52,9 +57,6 @@
 // --------------------------------------------------
 // CEF message pump - Qt event loop integration
 // --------------------------------------------------
-
-
-
 
 class CefMessagePump : public QObject
 {
@@ -76,14 +78,11 @@ public:
 
     void schedule(int64_t delayMs)
     {
-        // CEF may request a maximum-delay timer.
-        // Do not replace an already pending timer.
         if (delayMs == INT_MAX && timer.isActive())
             return;
 
         timer.stop();
 
-        // CEF should never wait too long between message pump calls.
         constexpr int64_t maxDelay = 1000 / 30;
 
         int64_t delay = delayMs;
@@ -121,8 +120,6 @@ private:
             schedule(0);
         }
         else if (!timer.isActive()) {
-            // Keep the message pump alive even when CEF
-            // does not explicitly request another timer.
             schedule(1000 / 30);
         }
     }
@@ -133,14 +130,9 @@ private:
     bool reentrancyDetected = false;
 };
 
-
-
-
 // --------------------------------------------------
 // CEF application
 // --------------------------------------------------
-
-
 
 class DeezerCefApp :
     public CefApp,
@@ -174,6 +166,8 @@ public:
         const CefString& processType,
         CefRefPtr<CefCommandLine> commandLine) override
     {
+        Q_UNUSED(processType);
+
         if (!hardwareAccelerationEnabled) {
             commandLine->AppendSwitch("disable-gpu");
 
@@ -203,7 +197,6 @@ public:
         );
     }
 
-    // Renderer process: initialize JavaScript query router.
     void OnWebKitInitialized() override
     {
         CefMessageRouterConfig config;
@@ -281,7 +274,6 @@ class MainWindow;
 // CEF browser client
 // --------------------------------------------------
 
-
 class DeezerClient :
     public CefClient,
     public CefLifeSpanHandler,
@@ -291,83 +283,82 @@ class DeezerClient :
     public CefMessageRouterBrowserSide::Handler
 {
 public:
-   explicit DeezerClient(
-    MainWindow *window,
-    MprisController *mpris)
-    : mainWindow(window),
-      mprisController(mpris)
-{
-}
+    explicit DeezerClient(
+        MainWindow *window,
+        MprisController *mpris)
+        : mainWindow(window),
+          mprisController(mpris)
+    {
+    }
 
     void executeMediaCommand(const QString &command)
-{
-    if (!mediaFrame || !mediaFrame->IsValid()) {
-        qWarning() << "MPRIS: No valid media frame for command:"
-                   << command;
-        return;
-    }
+    {
+        if (!mediaFrame || !mediaFrame->IsValid()) {
+            qWarning() << "MPRIS: No valid media frame for command:"
+                       << command;
+            return;
+        }
 
-    QString action;
+        QString action;
 
-    if (command == "play") {
-        action = R"JS(
-            if (media.paused) {
-                media.play().catch(function(error) {
-                    console.error("MPRIS PLAY ERROR:", error);
-                });
-            }
-        )JS";
-    }
-    else if (command == "pause") {
-        action = "media.pause();";
-    }
-    else if (command == "playpause") {
-        action = R"JS(
-            if (media.paused) {
-                media.play().catch(function(error) {
-                    console.error("MPRIS PLAY ERROR:", error);
-                });
-            } else {
+        if (command == "play") {
+            action = R"JS(
+                if (media.paused) {
+                    media.play().catch(function(error) {
+                        console.error("MPRIS PLAY ERROR:", error);
+                    });
+                }
+            )JS";
+        }
+        else if (command == "pause") {
+            action = "media.pause();";
+        }
+        else if (command == "playpause") {
+            action = R"JS(
+                if (media.paused) {
+                    media.play().catch(function(error) {
+                        console.error("MPRIS PLAY ERROR:", error);
+                    });
+                } else {
+                    media.pause();
+                }
+            )JS";
+        }
+        else if (command == "stop") {
+            action = R"JS(
                 media.pause();
-            }
-        )JS";
+                try {
+                    media.currentTime = 0;
+                } catch (error) {
+                    console.error("MPRIS STOP ERROR:", error);
+                }
+            )JS";
+        }
+        else {
+            qWarning() << "MPRIS: Unknown media command:" << command;
+            return;
+        }
+
+        QString script =
+            QStringLiteral(
+                "(function(){"
+                "const media = document.querySelector('audio, video');"
+                "if (!media) {"
+                "console.warn('MPRIS: Media element not found');"
+                "return;"
+                "}"
+                "%1"
+                "})();"
+            ).arg(action);
+
+        mediaFrame->ExecuteJavaScript(
+            script.toStdString(),
+            mediaFrame->GetURL(),
+            0
+        );
+
+        qDebug() << "MPRIS COMMAND SENT:" << command;
     }
-    else if (command == "stop") {
-        action = R"JS(
-            media.pause();
-            try {
-                media.currentTime = 0;
-            } catch (error) {
-                console.error("MPRIS STOP ERROR:", error);
-            }
-        )JS";
-    }
-    else {
-        qWarning() << "MPRIS: Unknown media command:" << command;
-        return;
-    }
-
-    QString script =
-        QStringLiteral(
-            "(function(){"
-            "const media = document.querySelector('audio, video');"
-            "if (!media) {"
-            "console.warn('MPRIS: Media element not found');"
-            "return;"
-            "}"
-            "%1"
-            "})();"
-        ).arg(action);
-
-    mediaFrame->ExecuteJavaScript(
-        script.toStdString(),
-        mediaFrame->GetURL(),
-        0
-    );
-
-    qDebug() << "MPRIS COMMAND SENT:" << command;
-}
-
 
     CefRefPtr<CefLifeSpanHandler>
     GetLifeSpanHandler() override
@@ -469,126 +460,193 @@ public:
 
     // JavaScript -> C++ query handler.
     bool OnQuery(
-    CefRefPtr<CefBrowser> browser,
-    CefRefPtr<CefFrame> frame,
-    int64_t queryId,
-    const CefString &request,
-    bool persistent,
-    CefRefPtr<Callback> callback) override
-{
-    Q_UNUSED(browser);
-    qDebug() << "MPRIS FRAME:"
-         << frame->GetIdentifier().ToString()
-         << QString::fromStdString(frame->GetURL().ToString());
-    Q_UNUSED(queryId);
-    Q_UNUSED(persistent);
+        CefRefPtr<CefBrowser> browser,
+        CefRefPtr<CefFrame> frame,
+        int64_t queryId,
+        const CefString &request,
+        bool persistent,
+        CefRefPtr<Callback> callback) override
+    {
+        Q_UNUSED(queryId);
+        Q_UNUSED(persistent);
 
-    QString requestText =
-        QString::fromStdString(request.ToString());
-
-    qDebug().noquote()
-        << "CEF JS QUERY RECEIVED:"
-        << requestText.left(500);
-
-    if (requestText == "ping") {
-        qDebug() << "CEF JS QUERY RECEIVED: ping";
-        callback->Success("pong");
-        return true;
-    }
-
-    QJsonParseError parseError;
-
-    QJsonDocument document =
-        QJsonDocument::fromJson(
-            requestText.toUtf8(),
-            &parseError
+        const QString actualFrameId = QString::fromStdString(
+            frame->GetIdentifier().ToString()
+        );
+        const QString actualFrameUrl = QString::fromStdString(
+            frame->GetURL().ToString()
         );
 
-    if (parseError.error != QJsonParseError::NoError ||
-        !document.isObject()) {
-        qWarning() << "MPRIS: Invalid JSON:"
-                   << parseError.errorString();
+        QString requestText =
+            QString::fromStdString(request.ToString());
 
-        callback->Failure(400, "Invalid JSON");
-        return true;
-    }
+        const bool isDiagnosticRequest =
+            requestText.contains("\"type\":\"media-diagnostic\"");
 
-    QJsonObject data = document.object();
+        if (!isDiagnosticRequest) {
+            qDebug() << "CEF QUERY FRAME:"
+                     << actualFrameId
+                     << actualFrameUrl;
 
-    mediaFrame = frame;
+            qDebug().noquote()
+                << "CEF JS QUERY RECEIVED:"
+                << requestText.left(500);
+        }
 
-    QString title = data.value("title").toString();
-    QString artist = data.value("artist").toString();
-    QString artUrl = data.value("artUrl").toString();
+        if (requestText == "ping") {
+            callback->Success("pong");
+            return true;
+        }
 
-    QString status = data.value("status").toString();
+        QJsonParseError parseError;
 
-    qDebug().noquote()
-        << "MPRIS MEDIA DATA:"
-        << "title =" << title
-        << "| artist =" << artist
-        << "| status =" << status;
+        QJsonDocument document =
+            QJsonDocument::fromJson(
+                requestText.toUtf8(),
+                &parseError
+            );
 
-    double currentTime =
-        data.value("currentTime").toDouble();
+        if (parseError.error != QJsonParseError::NoError ||
+            !document.isObject()) {
+            qWarning() << "MPRIS: Invalid JSON:"
+                       << parseError.errorString();
 
-    double duration =
-        data.value("duration").toDouble();
+            callback->Failure(400, "Invalid JSON");
+            return true;
+        }
 
-    if (!mprisController) {
-        callback->Failure(500, "MPRIS controller unavailable");
-        return true;
-    }
+        QJsonObject data = document.object();
 
-    QVariantMap metadata;
+        const QString reportedFrameUrl =
+            data.value("frameUrl").toString();
 
-    metadata.insert(
-        "mpris:trackid",
-        QVariant::fromValue(
-            QDBusObjectPath("/org/mpris/MediaPlayer2/track/current")
-        )
-    );
+        if (!reportedFrameUrl.isEmpty() &&
+            reportedFrameUrl != actualFrameUrl) {
+            const QString mismatchKey =
+                actualFrameId + QChar('\n') +
+                reportedFrameUrl + QChar('\n') +
+                actualFrameUrl;
 
-    if (!title.isEmpty())
-        metadata.insert("xesam:title", title);
+            if (!warnedFrameUrlMismatches.contains(mismatchKey)) {
+                warnedFrameUrlMismatches.insert(mismatchKey);
+                qWarning().noquote()
+                    << "CEF FRAME URL MISMATCH:"
+                    << "frameId =" << actualFrameId
+                    << "| JSON frameUrl =" << reportedFrameUrl
+                    << "| actual frameUrl =" << actualFrameUrl;
+            }
+        }
 
-    if (!artist.isEmpty())
-        metadata.insert("xesam:artist", QStringList{artist});
+        if (data.value("type").toString() == "media-diagnostic") {
+            const CefRefPtr<CefFrame> parentFrame = frame->GetParent();
+            const QString parentFrameId = parentFrame
+                ? QString::fromStdString(
+                      parentFrame->GetIdentifier().ToString()
+                  )
+                : QStringLiteral("<none>");
 
-    if (!artUrl.isEmpty())
-        metadata.insert("mpris:artUrl", artUrl);
+            if (!diagnosticFrameIdsSeen.contains(actualFrameId)) {
+                diagnosticFrameIdsSeen.insert(actualFrameId);
+                qDebug().noquote()
+                    << "[CEF DIAGNOSTIC FRAME QUERY SEEN]"
+                    << "frameId =" << actualFrameId
+                    << "| role =" << (frame->IsMain() ? "main" : "subframe")
+                    << "| parentFrameId =" << parentFrameId
+                    << "| frameName ="
+                    << QString::fromStdString(frame->GetName().ToString())
+                    << "| actual frameUrl =" << actualFrameUrl;
+            }
 
-    if (duration > 0) {
+            logFrameInventory(
+                browser,
+                !lastFrameInventoryIds.contains(actualFrameId)
+            );
+
+            qDebug().noquote()
+                << "[CEF MEDIA DIAGNOSTIC]"
+                << "frameId =" << actualFrameId
+                << "| actual frameUrl =" << actualFrameUrl
+                << "| snapshot ="
+                << QString::fromUtf8(
+                       QJsonDocument(data).toJson(
+                           QJsonDocument::Compact
+                       )
+                   );
+
+            callback->Success("diagnostic recorded");
+            return true;
+        }
+
+        mediaFrame = frame;
+
+        QString title = data.value("title").toString();
+        QString artist = data.value("artist").toString();
+        QString album = data.value("album").toString();
+        QString artUrl = data.value("artUrl").toString();
+        qDebug().noquote()
+            << "MPRIS MEDIA DATA:"
+            << "title =" << title
+            << "| artist =" << artist
+            << "| album =" << album
+            << "| artUrl =" << artUrl;
+
+        if (!mprisController) {
+            callback->Failure(500, "MPRIS controller unavailable");
+            return true;
+        }
+
+        QVariantMap metadata;
+
+        // Give every track a unique MPRIS track ID.
+        // This prevents desktop clients from reusing cached artwork.
+        QString trackIdentity =
+            title + "\n" + artist + "\n" + album;
+
+        QByteArray trackHash =
+            QCryptographicHash::hash(
+                trackIdentity.toUtf8(),
+                QCryptographicHash::Sha1
+            ).toHex();
+
+        QString trackPath =
+            "/org/mpris/MediaPlayer2/track/" +
+            QString::fromLatin1(trackHash);
+
         metadata.insert(
-            "mpris:length",
+            "mpris:trackid",
             QVariant::fromValue(
-                static_cast<qlonglong>(duration * 1000000.0)
+                QDBusObjectPath(trackPath)
             )
         );
+
+        if (!title.isEmpty())
+            metadata.insert("xesam:title", title);
+
+        if (!artist.isEmpty())
+            metadata.insert("xesam:artist", QStringList{artist});
+
+        if (!album.isEmpty())
+            metadata.insert("xesam:album", album);
+
+        // Always update the artwork property.
+        // An empty value prevents an old cover from being retained.
+        metadata.insert("mpris:artUrl", artUrl);
+
+        mprisController->setMetadata(metadata);
+
+        callback->Success("metadata updated");
+
+        return true;
     }
-
-    mprisController->setMetadata(metadata);
-
-    if (status == "Playing" ||
-        status == "Paused" ||
-        status == "Stopped") {
-        mprisController->setPlaybackStatus(status);
-    }
-
-    mprisController->setPosition(
-        static_cast<qlonglong>(currentTime * 1000000.0)
-    );
-
-    callback->Success("metadata updated");
-
-    return true;
-}
 
     void OnLoadStart(
         CefRefPtr<CefBrowser> browser,
         CefRefPtr<CefFrame> frame,
         TransitionType transitionType) override
     {
+        Q_UNUSED(browser);
+        Q_UNUSED(transitionType);
+
         if (frame->IsMain()) {
             qDebug() << "MAIN PAGE LOAD STARTED:"
                      << QString::fromStdString(
@@ -596,24 +654,22 @@ public:
         }
     }
 
+    void OnLoadEnd(
+        CefRefPtr<CefBrowser> browser,
+        CefRefPtr<CefFrame> frame,
+        int httpStatusCode) override
+    {
+        Q_UNUSED(browser);
 
+        if (frame->IsMain()) {
+            qDebug() << "MAIN PAGE LOADED:"
+                     << QString::fromStdString(
+                            frame->GetURL().ToString())
+                     << "HTTP:"
+                     << httpStatusCode;
+        }
 
-void OnLoadEnd(
-    CefRefPtr<CefBrowser> browser,
-    CefRefPtr<CefFrame> frame,
-    int httpStatusCode) override
-{
-    Q_UNUSED(browser);
-
-    if (frame->IsMain()) {
-        qDebug() << "MAIN PAGE LOADED:"
-                 << QString::fromStdString(
-                        frame->GetURL().ToString())
-                 << "HTTP:"
-                 << httpStatusCode;
-    }
-
-    const char *monitorScript = R"JS(
+        const char *monitorScript = R"JS(
 (function() {
 
     if (window.__deezerDesktopMonitorStarted)
@@ -621,95 +677,314 @@ void OnLoadEnd(
 
     window.__deezerDesktopMonitorStarted = true;
 
-    const frameUrl = location.href;
-
     console.log(
         "DEEZER MONITOR STARTED IN FRAME:",
-        frameUrl
+        location.href
     );
 
+    let lastMetadataDebug = "";
+    let lastSentTrack = "";
     let currentMedia = null;
 
-    function getMeta(property) {
-        const element = document.querySelector(
-            'meta[property="' + property + '"]'
-        );
+    let lastSentMetadata = "";
+    let trackChangeDetectedAt = 0;
+    let fastPollUntil = 0;
+    let fastPollTimer = null;
+    let lastDiagnosticSignature = "";
+    let lastDiagnosticSentAt = 0;
 
-        return element ? element.content : "";
+    function scheduleFastMetadataChecks() {
+
+        fastPollUntil = Date.now() + 2000;
+
+        if (fastPollTimer !== null)
+            return;
+
+        function checkForMetadataUpdate() {
+
+            fastPollTimer = null;
+
+            if (Date.now() >= fastPollUntil)
+                return;
+
+            sendMediaData(false);
+
+            if (Date.now() < fastPollUntil) {
+                fastPollTimer = setTimeout(
+                    checkForMetadataUpdate,
+                    100
+                );
+            }
+        }
+
+        fastPollTimer = setTimeout(
+            checkForMetadataUpdate,
+            100
+        );
     }
 
-    function sendMediaData(media) {
+    function getMediaSessionMetadata() {
 
-        const title =
-            getMeta("og:title") ||
-            document.title ||
-            "";
+        try {
+            if (!navigator.mediaSession)
+                return null;
 
-        const artist = getMeta("music:musician");
-        const artUrl = getMeta("og:image");
+            return navigator.mediaSession.metadata || null;
+        }
+        catch (error) {
+            console.error(
+                "MEDIA SESSION METADATA ERROR:",
+                error
+            );
 
-        let status = "Stopped";
+            return null;
+        }
+    }
 
-        if (!media.paused && !media.ended)
-            status = "Playing";
-        else if (media.paused && !media.ended)
-            status = "Paused";
+    function getArtworkUrl(metadata) {
 
-        const data = {
-            title: title,
-            artist: artist,
-            artUrl: artUrl,
-            status: status,
-            currentTime: media.currentTime || 0,
-            duration: Number.isFinite(media.duration)
-                ? media.duration
-                : 0,
-            frameUrl: frameUrl
+        if (!metadata || !metadata.artwork)
+            return "";
+
+        const artwork = Array.from(metadata.artwork);
+
+        if (artwork.length === 0)
+            return "";
+
+        // Prefer the largest available artwork image.
+        artwork.sort(function(a, b) {
+
+            function getSize(item) {
+                if (!item.sizes)
+                    return 0;
+
+                const match = item.sizes.match(
+                    /(\d+)x(\d+)/
+                );
+
+                if (!match)
+                    return 0;
+
+                return Number(match[1]) * Number(match[2]);
+            }
+
+            return getSize(b) - getSize(a);
+        });
+
+        for (const item of artwork) {
+
+            if (!item.src)
+                continue;
+
+            try {
+                const url = new URL(item.src, location.href);
+
+                if (
+                    url.protocol === "https:" ||
+                    url.protocol === "http:"
+                ) {
+                    return url.href;
+                }
+            }
+            catch (error) {
+                console.warn(
+                    "INVALID ARTWORK URL:",
+                    item.src
+                );
+            }
+        }
+
+        return "";
+    }
+
+    function getPlaybackStatus(media) {
+
+        try {
+            if (navigator.mediaSession) {
+
+                const playbackState =
+                    navigator.mediaSession.playbackState;
+
+                if (playbackState === "playing")
+                    return "Playing";
+
+                if (playbackState === "paused")
+                    return "Paused";
+
+                if (playbackState === "none")
+                    return "Stopped";
+            }
+        }
+        catch (error) {
+            console.warn(
+                "MEDIA SESSION STATE ERROR:",
+                error
+            );
+        }
+
+        if (media) {
+            if (!media.paused && !media.ended)
+                return "Playing";
+
+            if (media.paused && !media.ended)
+                return "Paused";
+        }
+
+        return "Stopped";
+    }
+
+    function getAccessibleMediaElements() {
+
+        const mediaElements = new Set();
+        const visitedRoots = new Set();
+
+        function inspectRoot(root) {
+
+            if (!root || visitedRoots.has(root))
+                return;
+
+            visitedRoots.add(root);
+
+            if (typeof root.querySelectorAll !== "function")
+                return;
+
+            root.querySelectorAll("audio, video").forEach(function(element) {
+                mediaElements.add(element);
+            });
+
+            root.querySelectorAll("*").forEach(function(element) {
+                if (element.shadowRoot)
+                    inspectRoot(element.shadowRoot);
+            });
+        }
+
+        inspectRoot(document);
+        return Array.from(mediaElements);
+    }
+
+    function sendFrameDiagnostics(mediaElements, sessionMetadata) {
+
+        let mediaSessionAvailable = false;
+        let playbackState = "unavailable";
+
+        try {
+            mediaSessionAvailable =
+                typeof navigator.mediaSession !== "undefined" &&
+                navigator.mediaSession !== null;
+
+            if (mediaSessionAvailable) {
+                playbackState =
+                    navigator.mediaSession.playbackState || "none";
+            }
+        }
+        catch (error) {
+            playbackState = "error";
+        }
+
+        const media = Array.from(mediaElements).map(function(element) {
+            return {
+                tagName: element.tagName.toLowerCase(),
+                currentSrc: element.currentSrc || "",
+                paused: !!element.paused,
+                ended: !!element.ended,
+                currentTime: Number.isFinite(element.currentTime)
+                    ? element.currentTime
+                    : null,
+                duration: Number.isFinite(element.duration)
+                    ? element.duration
+                    : null
+            };
+        });
+
+        const snapshot = {
+            type: "media-diagnostic",
+            frameUrl: location.href,
+            audioCount: media.filter(function(element) {
+                return element.tagName === "audio";
+            }).length,
+            videoCount: media.filter(function(element) {
+                return element.tagName === "video";
+            }).length,
+            mediaSessionAvailable: mediaSessionAvailable,
+            playbackState: playbackState,
+            title: sessionMetadata
+                ? sessionMetadata.title || ""
+                : "",
+            artist: sessionMetadata
+                ? sessionMetadata.artist || ""
+                : "",
+            media: media
         };
+
+        // Time advances continuously, so exclude it from the change key.
+        // Send a fresh time sample every five seconds for frames with media.
+        const signature = JSON.stringify({
+            frameUrl: snapshot.frameUrl,
+            audioCount: snapshot.audioCount,
+            videoCount: snapshot.videoCount,
+            mediaSessionAvailable: snapshot.mediaSessionAvailable,
+            playbackState: snapshot.playbackState,
+            title: snapshot.title,
+            artist: snapshot.artist,
+            media: media.map(function(element) {
+                return {
+                    tagName: element.tagName,
+                    currentSrc: element.currentSrc,
+                    paused: element.paused,
+                    ended: element.ended,
+                    duration: element.duration
+                };
+            })
+        });
+
+        const now = Date.now();
+        const changed = signature !== lastDiagnosticSignature;
+        const mediaSampleDue =
+            media.length > 0 && now - lastDiagnosticSentAt >= 5000;
+
+        if (!changed && !mediaSampleDue)
+            return;
 
         if (typeof window.cefQuery !== "function")
             return;
 
+        lastDiagnosticSignature = signature;
+        lastDiagnosticSentAt = now;
+
         window.cefQuery({
-            request: JSON.stringify(data),
+            request: JSON.stringify(snapshot),
             onSuccess: function(response) {},
             onFailure: function(code, message) {
-                console.error(
-                    "DEEZER QUERY ERROR:",
+                console.warn(
+                    "[CEF MEDIA DIAGNOSTIC QUERY ERROR]",
                     code,
-                    message
+                    message,
+                    location.href
                 );
             }
         });
     }
 
-    function monitor() {
+    function sendMediaData(periodic) {
+
+        const sessionMetadata =
+            getMediaSessionMetadata();
 
         const mediaElements =
             document.querySelectorAll("audio, video");
 
-        if (mediaElements.length === 0) {
-            if (!window.__deezerNoMediaLogged) {
-                console.log(
-                    "DEEZER: No media in frame:",
-                    frameUrl
-                );
+        const media =
+            mediaElements.length > 0
+                ? mediaElements[0]
+                : null;
 
-                window.__deezerNoMediaLogged = true;
-            }
-
-            return;
-        }
-
-        const media = mediaElements[0];
-
-        if (media !== currentMedia) {
+        if (media && media !== currentMedia) {
 
             currentMedia = media;
 
             console.log(
                 "DEEZER: MEDIA ELEMENT FOUND!",
-                frameUrl,
+                location.href,
                 media.tagName
             );
 
@@ -725,39 +1000,211 @@ void OnLoadEnd(
                 media.addEventListener(
                     eventName,
                     function() {
-                        sendMediaData(media);
+                        if (eventName !== "timeupdate")
+                            scheduleFastMetadataChecks();
+
+                        sendMediaData(false);
                     }
                 );
 
             });
         }
 
-        sendMediaData(media);
+        // MediaSession metadata is the primary source.
+        // Do not use page-level og:image as track artwork.
+        const title = sessionMetadata
+            ? sessionMetadata.title || ""
+            : "";
+
+        const artist = sessionMetadata
+            ? sessionMetadata.artist || ""
+            : "";
+
+        const album = sessionMetadata
+            ? sessionMetadata.album || ""
+            : "";
+
+        const artUrl =
+            getArtworkUrl(sessionMetadata);
+
+        sendFrameDiagnostics(
+            getAccessibleMediaElements(),
+            sessionMetadata
+        );
+
+        const status =
+            getPlaybackStatus(media);
+
+        const currentTime =
+            media && Number.isFinite(media.currentTime)
+                ? media.currentTime
+                : 0;
+
+        const duration =
+            media && Number.isFinite(media.duration)
+                ? media.duration
+                : 0;
+
+        const debugInfo = JSON.stringify({
+            title: title,
+            artist: artist,
+            album: album,
+            artUrl: artUrl,
+            playbackState:
+                navigator.mediaSession
+                    ? navigator.mediaSession.playbackState
+                    : "unavailable",
+            mediaElementFound: !!media
+        });
+
+        if (debugInfo !== lastMetadataDebug) {
+            console.log(
+                "[ARTWORK DEBUG]",
+                debugInfo
+            );
+
+            lastMetadataDebug = debugInfo;
+        }
+
+        // There is nothing useful to send until Deezer
+        // provides actual track metadata.
+        if (!title && !artist)
+            return;
+
+        const trackKey =
+            title + "\n" + artist + "\n" + album;
+
+        if (trackKey !== lastSentTrack) {
+
+            console.log(
+                "DEEZER TRACK CHANGED:",
+                trackKey
+            );
+
+            lastSentTrack = trackKey;
+            trackChangeDetectedAt = performance.now();
+            scheduleFastMetadataChecks();
+        }
+
+        const metadataKey = JSON.stringify({
+            title: title,
+            artist: artist,
+            album: album,
+            artUrl: artUrl,
+            status: status,
+            duration: duration
+        });
+
+        const metadataChanged =
+            metadataKey !== lastSentMetadata;
+
+        if (!periodic && !metadataChanged)
+            return;
+
+        if (metadataChanged) {
+            console.log(
+                "[MEDIA METADATA FORWARD]",
+                "trackChangeDelayMs =",
+                trackChangeDetectedAt
+                    ? Math.round(
+                          performance.now() - trackChangeDetectedAt
+                      )
+                    : "unavailable",
+                "| artUrl =",
+                artUrl
+            );
+        }
+
+        const data = {
+            title: title,
+            artist: artist,
+            album: album,
+            artUrl: artUrl,
+            status: status,
+            currentTime: currentTime,
+            duration: duration,
+            frameUrl: location.href
+        };
+
+        if (typeof window.cefQuery !== "function") {
+            console.warn(
+                "CEF QUERY IS NOT AVAILABLE:",
+                location.href
+            );
+
+            return;
+        }
+
+        lastSentMetadata = metadataKey;
+
+        window.cefQuery({
+            request: JSON.stringify(data),
+
+            onSuccess: function(response) {},
+
+            onFailure: function(code, message) {
+                console.error(
+                    "DEEZER QUERY ERROR:",
+                    code,
+                    message
+                );
+            }
+        });
     }
 
-    monitor();
+    // Run immediately and keep checking because Deezer
+    // may update MediaSession metadata asynchronously.
+    sendMediaData(true);
 
-    setInterval(monitor, 1000);
+    setInterval(function() {
+        sendMediaData(true);
+    }, 1000);
 
 })();
 )JS";
 
-    frame->ExecuteJavaScript(
-        monitorScript,
-        frame->GetURL(),
-        0
-    );
+        // Inject the media monitor.
+        frame->ExecuteJavaScript(
+            monitorScript,
+            frame->GetURL(),
+            0
+        );
 
-    if (frame->IsMain()) {
-        qDebug() << "CEF MEDIA MONITOR INJECTED INTO MAIN FRAME";
-    }
-    else {
-        qDebug() << "CEF MEDIA MONITOR INJECTED INTO SUBFRAME:"
-                 << QString::fromStdString(
-                        frame->GetURL().ToString());
-    }
-}
+        // Test the CEF JavaScript query connection.
+        frame->ExecuteJavaScript(
+            R"JS(
+            console.log(
+                "[CEF TEST] Frame:",
+                location.href,
+                "| cefQuery:",
+                typeof window.cefQuery
+            );
 
+            if (typeof window.cefQuery === "function") {
+                window.cefQuery({
+                    request: "ping",
+                    onSuccess: function(response) {
+                        console.log("[CEF TEST] Ping success:", response);
+                    },
+                    onFailure: function(code, message) {
+                        console.error("[CEF TEST] Ping failed:", code, message);
+                    }
+                });
+            }
+            )JS",
+            frame->GetURL(),
+            0
+        );
+
+        if (frame->IsMain()) {
+            qDebug() << "CEF MEDIA MONITOR INJECTED INTO MAIN FRAME";
+        }
+        else {
+            qDebug() << "CEF MEDIA MONITOR INJECTED INTO SUBFRAME:"
+                     << QString::fromStdString(
+                            frame->GetURL().ToString());
+        }
+    }
 
     void OnLoadError(
         CefRefPtr<CefBrowser> browser,
@@ -766,6 +1213,8 @@ void OnLoadEnd(
         const CefString &errorText,
         const CefString &failedUrl) override
     {
+        Q_UNUSED(browser);
+
         if (frame->IsMain()) {
             qWarning() << "MAIN PAGE LOAD FAILED:"
                        << QString::fromStdString(
@@ -779,10 +1228,117 @@ void OnLoadEnd(
     }
 
 private:
+    void logFrameInventory(
+        CefRefPtr<CefBrowser> browser,
+        bool forceRefresh)
+    {
+        if (!browser || !browser->IsValid())
+            return;
+
+        const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+
+        if (!forceRefresh &&
+            lastFrameInventoryScanAtMs != 0 &&
+            nowMs - lastFrameInventoryScanAtMs < 5000) {
+            return;
+        }
+
+        lastFrameInventoryScanAtMs = nowMs;
+
+        std::vector<CefString> frameIdentifiers;
+        browser->GetFrameIdentifiers(frameIdentifiers);
+
+        QSet<QString> currentFrameIds;
+        QStringList frameEntries;
+
+        for (const CefString &identifier : frameIdentifiers) {
+            const QString frameId =
+                QString::fromStdString(identifier.ToString());
+            const CefRefPtr<CefFrame> listedFrame =
+                browser->GetFrameByIdentifier(identifier);
+
+            if (!listedFrame || !listedFrame->IsValid())
+                continue;
+
+            currentFrameIds.insert(frameId);
+
+            const CefRefPtr<CefFrame> parentFrame =
+                listedFrame->GetParent();
+            const QString parentFrameId = parentFrame
+                ? QString::fromStdString(
+                      parentFrame->GetIdentifier().ToString()
+                  )
+                : QStringLiteral("<none>");
+            const QString role = listedFrame->IsMain()
+                ? QStringLiteral("main")
+                : QStringLiteral("subframe");
+            const QString frameName = QString::fromStdString(
+                listedFrame->GetName().ToString()
+            );
+            const QString frameUrl = QString::fromStdString(
+                listedFrame->GetURL().ToString()
+            );
+
+            frameEntries.append(
+                QStringLiteral(
+                    "frameId=%1 | role=%2 | name=%3 | parentFrameId=%4 | url=%5"
+                ).arg(frameId, role, frameName, parentFrameId, frameUrl)
+            );
+        }
+
+        frameEntries.sort();
+        const QString inventorySignature = frameEntries.join(QChar('\n'));
+
+        if (inventorySignature != lastFrameInventorySignature) {
+            qDebug().noquote()
+                << "[CEF FRAME INVENTORY] count ="
+                << frameEntries.size();
+
+            for (const QString &entry : frameEntries)
+                qDebug().noquote() << "[CEF FRAME]" << entry;
+
+            lastFrameInventorySignature = inventorySignature;
+        }
+
+        lastFrameInventoryIds = currentFrameIds;
+
+        QStringList framesWithoutDiagnostic;
+        for (const QString &frameId : currentFrameIds) {
+            if (!diagnosticFrameIdsSeen.contains(frameId))
+                framesWithoutDiagnostic.append(frameId);
+        }
+        framesWithoutDiagnostic.sort();
+
+        const QString coverageState =
+            QStringLiteral("%1/%2|%3")
+                .arg(currentFrameIds.size() - framesWithoutDiagnostic.size())
+                .arg(currentFrameIds.size())
+                .arg(framesWithoutDiagnostic.join(","));
+
+        if (coverageState != lastFrameDiagnosticCoverageState) {
+            qDebug().noquote()
+                << "[CEF FRAME DIAGNOSTIC COVERAGE] received ="
+                << currentFrameIds.size() - framesWithoutDiagnostic.size()
+                << "/" << currentFrameIds.size()
+                << "| waitingFrameIds ="
+                << (framesWithoutDiagnostic.isEmpty()
+                        ? QStringLiteral("<none>")
+                        : framesWithoutDiagnostic.join(","));
+
+            lastFrameDiagnosticCoverageState = coverageState;
+        }
+    }
+
     QPointer<MainWindow> mainWindow;
     MprisController *mprisController = nullptr;
 
     CefRefPtr<CefFrame> mediaFrame;
+    QSet<QString> warnedFrameUrlMismatches;
+    QSet<QString> diagnosticFrameIdsSeen;
+    QSet<QString> lastFrameInventoryIds;
+    qint64 lastFrameInventoryScanAtMs = 0;
+    QString lastFrameInventorySignature;
+    QString lastFrameDiagnosticCoverageState;
 
     CefRefPtr<CefMessageRouterBrowserSide>
         messageRouter;
@@ -868,11 +1424,11 @@ class MainWindow : public QMainWindow
 {
 public:
     explicit MainWindow(
-    AudioOutputController *audioController,
-    QWidget *parent = nullptr
-)
-    : QMainWindow(parent),
-      audioOutputController(audioController)
+        AudioOutputController *audioController,
+        QWidget *parent = nullptr
+    )
+        : QMainWindow(parent),
+          audioOutputController(audioController)
     {
         setWindowTitle("Deezer Desktop");
 
@@ -896,7 +1452,6 @@ public:
         browserWidget = new BrowserWidget(this);
         setCentralWidget(browserWidget);
 
-        // Settings menu
         QMenu *settingsMenu = menuBar()->addMenu("Ayarlar");
 
         QAction *settingsAction =
@@ -1077,12 +1632,10 @@ private:
         QApplication::setPalette(palette);
     }
 };
+
 // --------------------------------------------------
 // Browser lifecycle callbacks
 // --------------------------------------------------
-
-
-
 
 void DeezerClient::OnAfterCreated(
     CefRefPtr<CefBrowser> browser)
@@ -1093,7 +1646,6 @@ void DeezerClient::OnAfterCreated(
     qDebug() << "BROWSER ID:" << browser->GetIdentifier();
     qDebug() << "BROWSER LOADING:" << browser->IsLoading();
 
-    // Create browser-side message router.
     CefMessageRouterConfig config;
 
     messageRouter =
@@ -1146,7 +1698,6 @@ void DeezerClient::OnAfterCreated(
     );
 }
 
-
 void DeezerClient::OnBeforeClose(
     CefRefPtr<CefBrowser> browser)
 {
@@ -1176,24 +1727,17 @@ void DeezerClient::OnBeforeClose(
     );
 }
 
-
-
 // --------------------------------------------------
 // Main
 // --------------------------------------------------
 
-
-
 int main(int argc, char *argv[])
 {
-    // This implementation uses X11 child windows.
     qputenv("QT_QPA_PLATFORM", "xcb");
 
-    // Application identity must be set before QSettings is used.
     QApplication::setApplicationName("Deezer Desktop");
     QApplication::setOrganizationName("DeezerDesktop");
 
-    // Read hardware acceleration preference before CEF processes start.
     QSettings appSettings;
 
     bool hardwareAccelerationEnabled =
@@ -1225,51 +1769,49 @@ int main(int argc, char *argv[])
 
     QApplication app(argc, argv);
 
-MprisController mprisController;
-AudioOutputController audioOutputController;
+    MprisController mprisController;
+    AudioOutputController audioOutputController;
 
-// Audio output device discovery
-QObject::connect(
-    &audioOutputController,
-    &AudioOutputController::devicesUpdated,
-    &app,
-    [](const QVariantList &devices, const QString &defaultSink) {
-        qDebug() << "=== AUDIO OUTPUT DEVICES ===";
-        qDebug() << "Default sink:" << defaultSink;
+    QObject::connect(
+        &audioOutputController,
+        &AudioOutputController::devicesUpdated,
+        &app,
+        [](const QVariantList &devices, const QString &defaultSink) {
+            qDebug() << "=== AUDIO OUTPUT DEVICES ===";
+            qDebug() << "Default sink:" << defaultSink;
 
-        for (const QVariant &item : devices) {
-            QVariantMap device = item.toMap();
+            for (const QVariant &item : devices) {
+                QVariantMap device = item.toMap();
 
-            qDebug() << "Device:"
-                     << device["description"].toString();
+                qDebug() << "Device:"
+                         << device["description"].toString();
 
-            qDebug() << "Sink name:"
-                     << device["name"].toString();
+                qDebug() << "Sink name:"
+                         << device["name"].toString();
 
-            qDebug() << "Sample rate:"
-                     << device["sampleRate"].toInt();
+                qDebug() << "Sample rate:"
+                         << device["sampleRate"].toInt();
 
-            qDebug() << "Channels:"
-                     << device["channels"].toInt();
+                qDebug() << "Channels:"
+                         << device["channels"].toInt();
 
-            qDebug() << "Default:"
-                     << device["isDefault"].toBool();
+                qDebug() << "Default:"
+                         << device["isDefault"].toBool();
+            }
+
+            qDebug() << "============================";
         }
+    );
 
-        qDebug() << "============================";
-    }
-);
+    QObject::connect(
+        &audioOutputController,
+        &AudioOutputController::errorOccurred,
+        &app,
+        [](const QString &message) {
+            qWarning() << "Audio output error:" << message;
+        }
+    );
 
-QObject::connect(
-    &audioOutputController,
-    &AudioOutputController::errorOccurred,
-    &app,
-    [](const QString &message) {
-        qWarning() << "Audio output error:" << message;
-    }
-);
-
-    // Create the Qt timer only after QApplication.
     CefMessagePump messagePump;
     cefApp->setMessagePump(&messagePump);
 
@@ -1301,43 +1843,42 @@ QObject::connect(
 
     MainWindow window(&audioOutputController);
 
-CefRefPtr<DeezerClient> client =
-    new DeezerClient(&window, &mprisController);
+    CefRefPtr<DeezerClient> client =
+        new DeezerClient(&window, &mprisController);
 
-// MPRIS media commands
-QObject::connect(
-    &mprisController,
-    &MprisController::playRequested,
-    [&client]() {
-        client->executeMediaCommand("play");
-    }
-);
+    QObject::connect(
+        &mprisController,
+        &MprisController::playRequested,
+        [&client]() {
+            client->executeMediaCommand("play");
+        }
+    );
 
-QObject::connect(
-    &mprisController,
-    &MprisController::pauseRequested,
-    [&client]() {
-        client->executeMediaCommand("pause");
-    }
-);
+    QObject::connect(
+        &mprisController,
+        &MprisController::pauseRequested,
+        [&client]() {
+            client->executeMediaCommand("pause");
+        }
+    );
 
-QObject::connect(
-    &mprisController,
-    &MprisController::playPauseRequested,
-    [&client]() {
-        client->executeMediaCommand("playpause");
-    }
-);
+    QObject::connect(
+        &mprisController,
+        &MprisController::playPauseRequested,
+        [&client]() {
+            client->executeMediaCommand("playpause");
+        }
+    );
 
-QObject::connect(
-    &mprisController,
-    &MprisController::stopRequested,
-    [&client]() {
-        client->executeMediaCommand("stop");
-    }
-);
+    QObject::connect(
+        &mprisController,
+        &MprisController::stopRequested,
+        [&client]() {
+            client->executeMediaCommand("stop");
+        }
+    );
 
-window.show();
+    window.show();
 
     QTimer::singleShot(
         0,
@@ -1349,7 +1890,6 @@ window.show();
 
     int result = app.exec();
 
-    // All browser windows must be closed before shutdown.
     CefShutdown();
 
     return result;

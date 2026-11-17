@@ -8,6 +8,7 @@
 #include <QDBusAbstractAdaptor>
 #include <QDBusConnection>
 #include <QDBusObjectPath>
+#include <QTimer>
 
 class MprisController;
 
@@ -142,12 +143,14 @@ public:
     void setPlaybackStatus(const QString &status);
     void setMetadata(const QVariantMap &metadata);
     void setPosition(qlonglong position);
+    void setChromiumMetadata(const QVariantMap &metadata);
 
     void requestRaise();
     void requestQuit();
 
 signals:
     void playbackStatusChanged();
+    void positionSeeked(qlonglong position);
     void loopStatusChanged();
     void shuffleChanged();
     void metadataChanged();
@@ -167,7 +170,43 @@ signals:
     void quitRequested();
 
 private:
+    void discoverChromiumService();
+    void attachChromiumService(const QString &serviceName);
+    void detachChromiumService();
+    void requestChromiumProperties();
+    void requestChromiumPosition();
+    void applyChromiumPlaybackStatus(const QString &status);
+    void applyChromiumPosition(qlonglong position, bool detectSeek);
+    void updateCombinedMetadata();
+    bool chromiumMetadataMatchesDeezerTrack() const;
+    void emitPlayerPropertiesChanged(const QVariantMap &changedProperties);
+
+private slots:
+    void onBusServiceOwnerChanged(
+        const QString &serviceName,
+        const QString &oldOwner,
+        const QString &newOwner);
+    void onChromiumPropertiesChanged(
+        const QString &interfaceName,
+        const QVariantMap &changedProperties,
+        const QStringList &invalidatedProperties);
+    void onChromiumSeeked(qlonglong position);
+
+private:
     QDBusConnection connection;
+    QTimer positionRefreshTimer;
+    bool mprisObjectRegistered = false;
+    QString chromiumServiceName;
+    quint64 chromiumConnectionGeneration = 0;
+    QVariantMap deezerMetadata;
+    QVariantMap chromiumMetadata;
+    qlonglong chromiumPosition = 0;
+    qlonglong lastPositionSample = 0;
+    qint64 lastPositionSampleAtMs = 0;
+    bool hasChromiumPosition = false;
+    bool positionRequestInFlight = false;
+    QString chromiumPlaybackStatus = "Stopped";
+    qlonglong chromiumTrackLength = 0;
 
     QString currentPlaybackStatus = "Stopped";
     QString currentLoopStatus = "None";
